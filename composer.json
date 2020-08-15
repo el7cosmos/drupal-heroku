@@ -26,7 +26,8 @@
         "drush/drush": "^10.3"
     },
     "require-dev": {
-        "drupal/core-dev": "^9.0"
+        "drupal/core-dev": "^9.0",
+        "symfony/dotenv": "^5.1"
     },
     "conflict": {
         "drupal/drupal": "*"
