@@ -58,6 +58,11 @@
  * implementations with custom ones.
  */
 
+use Drupal\Component\Serialization\PhpSerialize;
+use Drupal\redis\Cache\CacheBackendFactory;
+use Drupal\redis\Cache\PhpRedis;
+use Drupal\redis\Cache\RedisCacheTagsChecksum;
+use Drupal\redis\ClientFactory;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -786,4 +791,61 @@ if (isset($_ENV['DATABASE_URL'])) {
   $databases['default']['default']['host'] = $connection['host'];
   $databases['default']['default']['port'] = $connection['port'];
   $databases['default']['default']['driver'] = $connection['scheme'] === 'postgres' ? 'pgsql' : $connection['scheme'];
+}
+
+/**
+ * Redis config.
+ */
+if (isset($_ENV['REDIS_URL'])) {
+  $settings['container_yamls'][] = $app_root . '/' . $site_path . '/redis.services.yml';
+
+  // Use redis for container cache.
+  // The container cache is used to load the container definition itself, and
+  // thus any configuration stored in the container itself is not available
+  // yet. These lines force the container cache to use Redis rather than the
+  // default SQL cache.
+  $settings['bootstrap_container_definition'] = [
+    'parameters' => [],
+    'services' => [
+      'redis.factory' => [
+        'class' => ClientFactory::class,
+      ],
+      'cache.backend.redis' => [
+        'class' => CacheBackendFactory::class,
+        'arguments' => ['@redis.factory', '@cache_tags_provider.container', '@serialization.phpserialize'],
+      ],
+      'cache.container' => [
+        'class' => PhpRedis::class,
+        'factory' => ['@cache.backend.redis', 'get'],
+        'arguments' => ['container'],
+      ],
+      'cache_tags_provider.container' => [
+        'class' => RedisCacheTagsChecksum::class,
+        'arguments' => ['@redis.factory'],
+      ],
+      'serialization.phpserialize' => [
+        'class' => PhpSerialize::class,
+      ],
+    ],
+  ];
+
+  // Always set the fast backend for bootstrap, discover and config, otherwise
+  // this gets lost when redis is enabled.
+  $settings['cache']['bins']['bootstrap'] = 'cache.backend.chainedfast';
+  $settings['cache']['bins']['discovery'] = 'cache.backend.chainedfast';
+  $settings['cache']['bins']['config'] = 'cache.backend.chainedfast';
+
+  $redis = parse_url($_ENV['REDIS_URL']);
+
+  $settings['container_yamls'][] = DRUPAL_ROOT . '/sites/default/redis.services.yml';
+  $settings['cache']['default'] = 'cache.backend.redis';
+
+  $settings['redis.connection'] = [
+    'interface' => 'PhpRedis',
+    'host' => $redis['host'],
+    'port' => $redis['port'],
+    'password' => $redis['pass'] ?? NULL,
+  ];
+
+  $settings['queue_default'] = 'queue.redis';
 }

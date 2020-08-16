@@ -32,6 +32,11 @@
     "conflict": {
         "drupal/drupal": "*"
     },
+    "autoload-dev": {
+        "files": [
+            "load.environment.php"
+        ]
+    },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
