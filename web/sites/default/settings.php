@@ -716,6 +716,9 @@ $settings['container_yamls'][] = $app_root . '/' . $site_path . '/services.yml';
  * will allow the site to run off of all variants of example.com and
  * example.org, with all subdomains included.
  */
+if (isset($_ENV['TRUSTED_HOST_PATTERNS'])) {
+  $settings['trusted_host_patterns'] = explode(PATH_SEPARATOR, $_ENV['TRUSTED_HOST_PATTERNS']);
+}
 
 /**
  * The default list of directories that will be ignored by Drupal's file API.
